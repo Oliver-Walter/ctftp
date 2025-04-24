@@ -8,12 +8,6 @@
 
 #define LOCAL_HOST "127.0.0.1"
 
-#define READ 1
-#define WRITE 2
-
-#define READ_STR "read"
-#define WRITE_STR "write"
-
 #define argError(msg) {printf("Argument %s wrong", msg); exit(EXIT_FAILURE); }
 #define handlePerror(msg) { perror(msg); exit(EXIT_FAILURE); }
 
@@ -22,17 +16,18 @@ int main(int argc, char **argv) {
 	 * Get stuff from args
 	 */
 	if (argc != 6) {
-		printf("Usage: %s <mode> <filename> <client_port> <server_address> <server_port>\n", argv[0]);
+		printf("Usage: %s <action> <filename> <client_port> <server_address> <server_port>\n", argv[0]);
 		printf("mode: read/write\n");
 		exit(EXIT_FAILURE);
 	}
 
-	short mode;
-	if (strcmp(argv[1], READ_STR) == 0) mode = READ;
-	else if (strcmp(argv[1], WRITE_STR) == 0) mode = WRITE;
-	else argError("<mode>");
+	short action;
+	if (strcmp(argv[1], "read") == 0) action = TFTP_READ;
+	else if (strcmp(argv[1], "write") == 0) action = TFTP_WRITE;
+	else argError("<action>");
 
 	char *filename = argv[2];
+	if (strlen(filename) > 255) argError("<filename>");
 
 	int client_port = atoi(argv[3]);
 	if (client_port == 0) argError("<client_port>");
@@ -69,13 +64,13 @@ int main(int argc, char **argv) {
 	if (connect(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) handlePerror("Socket connect");
 
 	/*
-	 * Send request packet to server
+	 * Create apropriate request packet and send to server
 	 */
 	struct tftp_packet request_packet;
 	request_packet.payload = calloc(TFTP_MAX_PACKET_LEN, sizeof(char));
-	putShortInPayload(&request_packet, mode, TFTP_OPERAND_BYTE);
-	putStringInPayload(&request_packet, filename, strlen(filename), TFTP_FILE_NAME_BYTE);
-	request_packet.len = 2 + strlen(filename);
+	request_packet.len = 0;
+
+	createReadRequest(&request_packet, filename, strlen(filename), "octet", strlen("octet"));
 	send(socket_fd, request_packet.payload, request_packet.len, 0);
 
 	return 0;
