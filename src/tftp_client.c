@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 
 	int server_port = atoi(argv[5]);
 	if (server_port == 0) argError("<server_port>")
-	
+
 	/*
 	 * Create client socket and bind to client port
 	 */
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
 
 	struct sockaddr_in client_addr;
 	bzero(&client_addr, sizeof(client_addr));
-	
+
 	client_addr.sin_family = AF_INET;
 	client_addr.sin_port = htons(client_port);
 
@@ -73,5 +73,6 @@ int main(int argc, char **argv) {
 	createReadRequest(&request_packet, filename, strlen(filename), "octet", strlen("octet"));
 	send(socket_fd, request_packet.payload, request_packet.len, 0);
 
+	free(request_packet.payload);
 	return 0;
 }
