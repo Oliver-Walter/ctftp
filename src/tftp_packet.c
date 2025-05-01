@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <strings.h>
 
 #define TFTP_MAX_PACKET_LEN 516
 #define TFTP_OPERAND_BYTE 0
@@ -18,8 +19,11 @@
 
 #define MAX_FILE_NAME_LENGTH 255
 
-#define TFTP_READ 1
-#define TFTP_WRITE 2
+#define TFTP_RRQ 1
+#define TFTP_WRQ 2
+#define TFTP_DATA 3
+#define TFTP_ACK 4
+#define TFTP_ERROR 5
 
 struct tftp_packet {
 	char *payload;
@@ -33,11 +37,7 @@ void putShortInPayload(char *payload, unsigned short num, size_t at) {
 	}
 }
 
-/* TODO */
-/* This doesnt work lol */
 unsigned short getShortFromPayload(char *payload, size_t at) {
-	/* if (at < TFTP_MAX_PACKET_LEN - 1) return ((payload[at] & 0xff) << 8) + (payload[at] & 0xff);
-	else return -1; */
 	unsigned short ret = 0;
 	if (at < TFTP_MAX_PACKET_LEN - 1) {
 		ret = (payload[at] & 0xff) << 8;
@@ -48,25 +48,26 @@ unsigned short getShortFromPayload(char *payload, size_t at) {
 
 /* TODO */
 /* Refactor string functions to work with null terminated strings rather that buffers and lengths */
-void putStringInPayload(char *payload, char *str, size_t len, size_t at) {
+void putStringInPayload(char *payload, char *str, size_t at) {
 	size_t i;
-	for (i = 0; i < len && at + i < TFTP_MAX_PACKET_LEN; i += 1) payload[at + i] = str[i];
+	for (i = 0; str[i] != '\0' && at + i < TFTP_MAX_PACKET_LEN; i += 1) payload[at + i] = str[i];
 }
 
-/* I'm wondering if there is another way to do this by directly returning a char* */
 char *getStringFromPayload(char *payload, size_t at) {
 	size_t i, len = 0;
-	for (i = at; i != '\0' && i < TFTP_MAX_PACKET_LEN; i += 1) len += 1;
-	char *
+	for (i = at; payload[i] != '\0' && i < TFTP_MAX_PACKET_LEN; i += 1) len += 1;
+	char *str = calloc(len + 1, sizeof(char));
+	bzero(str, len + 1);
+	strcpy(str, &payload[at]);
+	return str;
 }
 
-void createReadRequest(struct tftp_packet *packet, char *filename, size_t filename_len, char *mode, size_t mode_len) {
-	putShortInPayload(packet->payload, 1234, TFTP_OPERAND_BYTE);
-	putStringInPayload(packet->payload, filename, filename_len, TFTP_FILE_NAME_BYTE);
-	packet->payload[TFTP_FILE_NAME_BYTE + filename_len] = 0x0;
-	putStringInPayload(packet->payload, mode, mode_len, TFTP_FILE_NAME_BYTE + filename_len + 1);
-	packet->payload[TFTP_FILE_NAME_BYTE + filename_len + 1 + mode_len] = 0x0;
-	packet->len = 2 + filename_len + 1 + mode_len + 1;
+void createRequestPacket(struct tftp_packet *packet, unsigned short operand, char *filename, char *mode) {
+	bzero(packet->payload, TFTP_MAX_PACKET_LEN);
+	putShortInPayload(packet->payload, operand, TFTP_OPERAND_BYTE);
+	putStringInPayload(packet->payload, filename, TFTP_FILE_NAME_BYTE);
+	putStringInPayload(packet->payload, mode, TFTP_FILE_NAME_BYTE + strlen(filename) + 1);
+	packet->len = TFTP_FILE_NAME_BYTE + strlen(filename) + 1 + strlen(mode) + 1;
 }
 
 #endif /* __TFTP_PACKET_C */

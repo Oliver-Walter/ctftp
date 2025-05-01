@@ -8,7 +8,7 @@
 
 #define LOCAL_HOST "127.0.0.1"
 
-#define argError(msg) {printf("Argument %s wrong", msg); exit(EXIT_FAILURE); }
+#define argError(msg) {printf("Argument error: %s\n", msg); exit(EXIT_FAILURE); }
 #define handlePerror(msg) { perror(msg); exit(EXIT_FAILURE); }
 
 int main(int argc, char **argv) {
@@ -22,20 +22,20 @@ int main(int argc, char **argv) {
 	}
 
 	short action;
-	if (strcmp(argv[1], "read") == 0) action = TFTP_READ;
-	else if (strcmp(argv[1], "write") == 0) action = TFTP_WRITE;
-	else argError("<action>");
+	if (strcmp(argv[1], "read") == 0) action = TFTP_RRQ;
+	else if (strcmp(argv[1], "write") == 0) action = TFTP_WRQ;
+	else argError("<action> must be \"read\" or \"write\"");
 
 	char *filename = argv[2];
-	if (strlen(filename) > 255) argError("<filename>");
+	if (strlen(filename) > 255) argError("<filename> must be less than 256 characters");
 
 	int client_port = atoi(argv[3]);
-	if (client_port == 0) argError("<client_port>");
+	if (client_port == 0) argError("<client_port> not valid");
 
 	char *server_address = argv[4];
 
 	int server_port = atoi(argv[5]);
-	if (server_port == 0) argError("<server_port>")
+	if (server_port == 0) argError("<server_port> not valid")
 
 	/*
 	 * Create client socket and bind to client port
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(server_port);
-	server_addr.sin_addr.s_addr = inet_addr(server_address);
+	if ((server_addr.sin_addr.s_addr = inet_addr(server_address)) == -1) argError("<server_address> not valid");
 
 	if (connect(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) handlePerror("Socket connect");
 
@@ -69,8 +69,10 @@ int main(int argc, char **argv) {
 	struct tftp_packet request_packet;
 	request_packet.payload = calloc(TFTP_MAX_PACKET_LEN, sizeof(char));
 	request_packet.len = 0;
+	createRequestPacket(&request_packet, TFTP_RRQ, filename, "octet");
+	size_t i;
+	for (i = 0; i < request_packet.len; i += 1) printf("%d ", request_packet.payload[i]);
 
-	createReadRequest(&request_packet, filename, strlen(filename), "octet", strlen("octet"));
 	send(socket_fd, request_packet.payload, request_packet.len, 0);
 
 	free(request_packet.payload);
